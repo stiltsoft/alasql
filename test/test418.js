@@ -69,13 +69,13 @@ describe('Test ' + test + ' Load data from internet', function () {
 		var url = 'raw.githubusercontent.com/agershun/alasql/develop/test/test157.json';
 
 		it('Load http', function (done) {
-			this.timeout(2000);
-			testRequest(2, 'http://' + url, 'false', done);
+			this.timeout(10000);
+			testRequest(3, 'http://' + url, 'false', done);
 		});
 
 		it('Load https', function (done) {
 			this.timeout(10000);
-			testRequest(2, 'https://' + url, 'false', done);
+			testRequest(3, 'https://' + url, 'false', done);
 		});
 	});
 
