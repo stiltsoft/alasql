@@ -54,8 +54,9 @@ yy.FuncValue.prototype.findAggregator = function (query) {
 yy.FuncValue.prototype.toJS = function (context, tableid, defcols) {
 	var s = '';
 	var funcid = this.funcid;
+	var isUserFn = Object.prototype.hasOwnProperty.call(alasql.fn, funcid);
 	// IF this is standard compile functions
-	if (!alasql.fn[funcid] && alasql.stdlib[funcid.toUpperCase()]) {
+	if (!isUserFn && alasql.stdlib[funcid.toUpperCase()]) {
 		if (this.args && this.args.length > 0) {
 			s += alasql.stdlib[funcid.toUpperCase()].apply(
 				this,
@@ -66,7 +67,7 @@ yy.FuncValue.prototype.toJS = function (context, tableid, defcols) {
 		} else {
 			s += alasql.stdlib[funcid.toUpperCase()]();
 		}
-	} else if (!alasql.fn[funcid] && alasql.stdfn[funcid.toUpperCase()]) {
+	} else if (!isUserFn && alasql.stdfn[funcid.toUpperCase()]) {
 		if (this.newid) s += 'new ';
 		s += 'alasql.stdfn[' + JSON.stringify(this.funcid.toUpperCase()) + '](';
 		if (this.args && this.args.length > 0) {
@@ -78,11 +79,11 @@ yy.FuncValue.prototype.toJS = function (context, tableid, defcols) {
 		}
 		s += ')';
 	} else {
-		// This is user-defined run-time function
+		// This is user-defined run-time function, resolved by own-property at run-time
 		// TODO arguments!!!
 		//		var s = '';
-		if (this.newid) s += 'new ';
-		s += 'alasql.fn[' + JSON.stringify(this.funcid) + '](';
+		var fnref = 'alasql.utils.getUserFunction(' + JSON.stringify(this.funcid) + ')';
+		s += this.newid ? 'new (' + fnref + ')(' : fnref + '(';
 		if (this.args && this.args.length > 0) {
 			s += this.args
 				.map(function (arg) {

@@ -1385,7 +1385,7 @@ FuncValue
 			var exprlist = $4;
 			if(exprlist.length > 1 && (funcid.toUpperCase() == 'MIN' || funcid.toUpperCase() == 'MAX')) {
 					$$ = new yy.FuncValue({funcid: funcid, args: exprlist});
-			} else if(alasql.aggr[$1]) {
+			} else if(Object.prototype.hasOwnProperty.call(alasql.aggr, $1)) {
 		    	$$ = new yy.AggrValue({aggregatorid: 'REDUCE',
                       funcid: funcid, expression: exprlist.pop(),distinct:($3=='DISTINCT') });
 		    } else {

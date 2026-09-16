@@ -812,7 +812,7 @@ case 353:
 			var exprlist = $$[$0-1];
 			if(exprlist.length > 1 && (funcid.toUpperCase() == 'MIN' || funcid.toUpperCase() == 'MAX')) {
 					this.$ = new yy.FuncValue({funcid: funcid, args: exprlist});
-			} else if(alasql.aggr[$$[$0-4]]) {
+			} else if(Object.prototype.hasOwnProperty.call(alasql.aggr, $$[$0-4])) {
 		    	this.$ = new yy.AggrValue({aggregatorid: 'REDUCE',
                       funcid: funcid, expression: exprlist.pop(),distinct:($$[$0-2]=='DISTINCT') });
 		    } else {
