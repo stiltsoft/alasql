@@ -7,14 +7,13 @@ describe('Test 1810 - XSS', function () {
 	const data = [{a: 1}];
 
 	it('Where', function () {
-		const run = () =>
-			alasql(
-				`Select a
-							  from ?
-							  where a->valueOf("]),alert(1)]);function g(){};//")`,
-				[data]
-			);
-		assert.throws(run, Error, 'ReferenceError: g is not defined');
+		const res = alasql(
+			`Select a
+						  from ?
+						  where a->valueOf("]),alert(1)]);function g(){};//")`,
+			[data]
+		);
+		assert.deepEqual(res, [{a: 1}]);
 	});
 
 	it('Rownum', function () {

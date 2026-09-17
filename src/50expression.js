@@ -1,6 +1,4 @@
 {
-	const UNSAFE_FUNCTION_PROPS = ["constructor", "call", "apply", "bind", "prototype"];
-
 	const assign = Object.assign;
 
 	class ExpressionStatement {
@@ -312,17 +310,26 @@
 				// Expression to prevent error if object is empty (#344)
 				const ljs = `(${leftJS()} || {})`;
 
-				const unsafe = UNSAFE_FUNCTION_PROPS.includes(this.right.funcid ?? this.right);
+				// Self-contained read (no `alasql` ref) so it works in isolated new Function scopes (e.g. CHECK, ORDER BY)
+				const denyListJS = JSON.stringify(alasql.utils.UNSAFE_FUNCTION_PROPS);
+				const derefJS = function (keyJS) {
+					return (
+						'(function(o,k){if(' +
+						denyListJS +
+						'.indexOf(k)!==-1)return null;var v=o[k];return typeof v==="function"?null:v;})(' +
+						ljs +
+						',' +
+						keyJS +
+						')'
+					);
+				};
 
 				if (typeof this.right === 'string') {
-					s = `${ljs}["${escapeq(this.right)}"]`;
-					if (unsafe) {
-						s = `(function(propValue) { return typeof propValue === 'function' ? null : propValue; })(${s})`;
-					}
+					s = derefJS(`"${escapeq(this.right)}"`);
 				} else if (typeof this.right === 'number') {
-					s = `${ljs}[${this.right}]`;
+					s = derefJS(String(this.right));
 				} else if (this.right instanceof yy.FuncValue) {
-					if (unsafe) {
+					if (alasql.utils.UNSAFE_FUNCTION_PROPS.indexOf(this.right.funcid) !== -1) {
 						throw new Error(`Access to dangerous property "${this.right.funcid}" is forbidden`);
 					}
 
@@ -332,7 +339,7 @@
 					}
 					s = `${ljs}[${JSON.stringify(this.right.funcid)}](${ss.join(',')})`;
 				} else {
-					s = `${ljs}[${rightJS()}]`;
+					s = derefJS(rightJS());
 				}
 			} else if (this.op === '!') {
 				if (typeof this.right === 'string') {

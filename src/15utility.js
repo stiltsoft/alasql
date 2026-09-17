@@ -12,6 +12,22 @@
  */
 var utils = (alasql.utils = {});
 
+var UNSAFE_FUNCTION_PROPS = (utils.UNSAFE_FUNCTION_PROPS = [
+	'constructor',
+	'call',
+	'apply',
+	'bind',
+	'prototype',
+	'__proto__',
+]);
+
+utils.getUserFunction = function (funcid) {
+	if (Object.prototype.hasOwnProperty.call(alasql.fn, funcid)) {
+		return alasql.fn[funcid];
+	}
+	throw new Error('Unknown function "' + funcid + '"');
+};
+
 /**
   Convert NaN to undefined
   @function
