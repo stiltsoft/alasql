@@ -6,23 +6,26 @@ on:
   pull_request:
     branches: '*'
 
+permissions:
+  contents: read
+
 jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bulid from src
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20.x'
       - run: yarn install --frozen-lockfile
       - run: yarn build-only
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@0c366cb4fc8897159c94880f94b55bc716ad6a66 # master, pinned 2026-09-22
         with:
           name: dist
           path: dist/
       - run: tar -cvf node_modules.tar node_modules
-      - uses: actions/upload-artifact@master
+      - uses: actions/upload-artifact@0c366cb4fc8897159c94880f94b55bc716ad6a66 # master, pinned 2026-09-22
         with:
           name: node_modules
           path: node_modules.tar
@@ -34,16 +37,16 @@ jobs:
       matrix:
         node-version: [latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run prod version with Node v${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@2a5974104b6d5dbdb2f9468a3e54da3bdd241578 # master, pinned 2026-09-22
         with:
           name: dist
           path: dist/
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@2a5974104b6d5dbdb2f9468a3e54da3bdd241578 # master, pinned 2026-09-22
         with:
           name: node_modules
           path: ./
@@ -54,8 +57,8 @@ jobs:
     needs: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@master
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@2a5974104b6d5dbdb2f9468a3e54da3bdd241578 # master, pinned 2026-09-22
         with:
           name: dist
           path: dist/
