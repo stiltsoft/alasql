@@ -22,7 +22,7 @@
 		"build": "yarn format && yarn build-only",
 		"build-only": "sh build.sh",
 		"install-g": "yarn build && npm uninstall alasql -g && npm install -g .",
-		"release": "yarn version",
+		"release": "yarn version --no-git-tag-version",
 		"jison": "jison ./src/alasqlparser.jison -o ./src/alasqlparser.js",
 		"fmt": "yarn pretty-commit --write",
 		"format": "yarn pretty-since-dev --write",
@@ -42,7 +42,7 @@
 		"pre-pr": "cmdmix 'yarn fresh '%1' && yarn repush'",
 		"prepare": "husky install",
 		"preversion": "yarn && yarn test",
-		"postversion": "npm publish && git push && git push --tags && echo \"Successfully released version $npm_package_version\""
+		"postversion": "echo \"Version updated. Commit the change and use the Publish to NPM workflow.\""
 	},
 	"dependencies": {
 		"cross-fetch": "4.1.0",
@@ -81,7 +81,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "http://github.com/akhaneev/alasql.git"
+		"url": "git+https://github.com/stiltsoft/alasql.git"
 	},
 	"bin": "./bin/alasql-cli.js",
 	"homepage": "https://github.com/alasql/alasql",
