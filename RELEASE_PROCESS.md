@@ -34,9 +34,19 @@ and add independent release approval as the follow-up hardening work.
 3. Open GitHub Actions → **Publish to NPM** → **Run workflow**. Select `develop`,
    enter the exact package version, and leave **Publish the checked package to npm
    as latest** unchecked.
-4. Confirm **Build, test and pack** succeeds. It installs dependencies from
-   `yarn.lock`, builds, runs the tests, checks the package identity and required
-   files, and uploads the exact `.tgz` as the `npm-package` artifact.
+4. Confirm **Build and test** and **Pack and check release contents** succeed.
+   The first job installs dependencies from `yarn.lock`, builds, runs the tests,
+   checks the package identity, and uploads `dist`. The packaging job checks out
+   a fresh workspace and downloads that artifact without a `path` override, so
+   the build files land in the package root. It checks the required files and
+   uploads the exact `.tgz` as the `npm-package` artifact.
+
+The archive layout stays compatible with `4.5.3-5`: `alasql.fs.js`, `alasql.js`,
+`alasql.min.js`, the worker/plugins and `alasql.d.ts` are in the package root.
+There is no top-level `dist/` directory. The existing `main` and `browser` values
+still point into `dist/`; this known metadata mismatch is deliberately preserved
+for this release and must be addressed separately after checking consumers.
+Release checks validate the actual root-level files, not those two metadata paths.
 
 This verification run does not publish anything and does not validate the OIDC
 exchange. `npm whoami` and `npm publish --dry-run` cannot prove the trust works.

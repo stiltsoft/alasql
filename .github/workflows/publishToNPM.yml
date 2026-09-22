@@ -26,7 +26,7 @@ defaults:
 
 jobs:
   build:
-    name: Build, test and pack
+    name: Build and test
     if: ${{ github.repository == 'stiltsoft/alasql' && github.ref == 'refs/heads/develop' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -68,6 +68,39 @@ jobs:
       - name: Test
         run: npm run test-only
 
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  pack:
+    name: Pack and check release contents
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Prepare npm
+        run: npm install --global npm@11.15.0
+
+      # Keep the published 4.5.3-5 layout: build files go in the package root.
+      - name: Download build output into the package root
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+
       - name: Pack and check release contents
         id: pack
         run: |
@@ -85,16 +118,19 @@ jobs:
           assert.equal(packed.version, process.env.EXPECTED_VERSION);
           const files = new Map(packed.files.map(file => [file.path, file.size]));
           const binaries = typeof pkg.bin === 'string' ? [pkg.bin] : Object.values(pkg.bin || {});
+          // main/browser retain the historic dist/ metadata until consumers are audited.
           const required = [
-            'package.json', pkg.main, pkg.browser, pkg.types || pkg.typings, ...binaries,
-            'dist/alasql.js', 'dist/alasql-worker.js', 'dist/alasql-echo.js',
-            'dist/alasql-prolog.js', 'dist/alasql.d.ts',
+            'package.json', pkg.types || pkg.typings, ...binaries,
+            'alasql.fs.js', 'alasql.js', 'alasql.min.js', 'alasql-worker.js',
+            'alasql-echo.js', 'alasql-prolog.js', 'alasql.d.ts',
           ];
           for (const file of required) {
             assert.equal(typeof file, 'string', 'Missing package entry point');
             const name = file.replace(/^\.\//, '');
             assert.ok(files.get(name) > 0, `Missing or empty file in npm package: ${name}`);
           }
+          assert.ok(![...files.keys()].some(name => name.startsWith('dist/')),
+            'Build files must remain in the package root, not a new dist/ directory');
           assert.equal(path.basename(packed.filename), packed.filename);
           assert.ok(packed.filename.endsWith('.tgz'));
           const tarball = path.join(process.env.RUNNER_TEMP, 'npm-package', packed.filename);
@@ -113,7 +149,7 @@ jobs:
 
   publish-npm:
     name: Publish checked package
-    needs: build
+    needs: pack
     if: ${{ inputs.publish && github.repository == 'stiltsoft/alasql' && github.ref == 'refs/heads/develop' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
