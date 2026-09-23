@@ -81,7 +81,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "http://github.com/akhaneev/alasql.git"
+		"url": "git+https://github.com/stiltsoft/alasql.git"
 	},
 	"bin": "./bin/alasql-cli.js",
 	"homepage": "https://github.com/alasql/alasql",

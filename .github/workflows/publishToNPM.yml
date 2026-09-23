@@ -24,18 +24,21 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '24'
           registry-url: https://registry.npmjs.org/
           scope: '@tablefilter'
+      - run: npm install --global npm@11.15.0
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
           name: dist
       - run: npm install
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      - run: npm publish --access public --tag latest
