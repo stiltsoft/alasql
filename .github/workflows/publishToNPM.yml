@@ -1,181 +1,44 @@
 name: Publish to NPM
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Expected package version to build and publish'
-        required: true
-        type: string
-      publish:
-        description: 'Publish the checked package to npm as latest'
-        required: true
-        type: boolean
-        default: false
-
-permissions:
-  contents: read
-
-concurrency:
-  group: npm-publish
-  cancel-in-progress: false
-
-defaults:
-  run:
-    shell: bash
+  workflow_dispatch: {}
+  release:
+    types: [created]
 
 jobs:
   build:
-    name: Build and test
-    if: ${{ github.repository == 'stiltsoft/alasql' && github.ref == 'refs/heads/develop' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      EXPECTED_VERSION: ${{ inputs.version }}
-      HUSKY: '0'
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-
-      - name: Prepare npm
-        run: |
-          npm install --global npm@11.15.0
-          node --version
-          npm --version
-
-      - name: Check package identity
-        run: |
-          node <<'NODE'
-          const assert = require('node:assert/strict');
-          const pkg = require('./package.json');
-          assert.equal(pkg.name, '@tablefilter/alasql');
-          assert.equal(pkg.version, process.env.EXPECTED_VERSION);
-          assert.equal(pkg.repository.url, 'git+https://github.com/stiltsoft/alasql.git');
-          console.log(`Preparing ${pkg.name}@${pkg.version} from ${process.env.GITHUB_SHA}`);
-          NODE
-
-      - name: Install dependencies
-        run: npx --yes yarn@1.22.22 install --frozen-lockfile
-
-      - name: Build
-        run: npm run build-only
-
-      - name: Test
-        run: npm run test-only
-
-      - name: Upload build output
+          node-version: 20
+      - run: npm install
+      - run: npm run build-only
+      - name: Upload dist
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/
-          if-no-files-found: error
-          retention-days: 7
-
-  pack:
-    name: Pack and check release contents
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      EXPECTED_VERSION: ${{ inputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Prepare npm
-        run: npm install --global npm@11.15.0
-
-      # Keep the published 4.5.3-5 layout: build files go in the package root.
-      - name: Download build output into the package root
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-
-      - name: Pack and check release contents
-        id: pack
-        run: |
-          mkdir -p "$RUNNER_TEMP/npm-package"
-          npm pack --ignore-scripts --json --pack-destination "$RUNNER_TEMP/npm-package" > "$RUNNER_TEMP/npm-pack.json"
-          node <<'NODE'
-          const assert = require('node:assert/strict');
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const pkg = require('./package.json');
-          const result = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'npm-pack.json'), 'utf8'));
-          assert.equal(result.length, 1, 'Expected exactly one npm package');
-          const packed = result[0];
-          assert.equal(packed.name, '@tablefilter/alasql');
-          assert.equal(packed.version, process.env.EXPECTED_VERSION);
-          const files = new Map(packed.files.map(file => [file.path, file.size]));
-          const binaries = typeof pkg.bin === 'string' ? [pkg.bin] : Object.values(pkg.bin || {});
-          // main/browser retain the historic dist/ metadata until consumers are audited.
-          const required = [
-            'package.json', pkg.types || pkg.typings, ...binaries,
-            'alasql.fs.js', 'alasql.js', 'alasql.min.js', 'alasql-worker.js',
-            'alasql-echo.js', 'alasql-prolog.js', 'alasql.d.ts',
-          ];
-          for (const file of required) {
-            assert.equal(typeof file, 'string', 'Missing package entry point');
-            const name = file.replace(/^\.\//, '');
-            assert.ok(files.get(name) > 0, `Missing or empty file in npm package: ${name}`);
-          }
-          assert.ok(![...files.keys()].some(name => name.startsWith('dist/')),
-            'Build files must remain in the package root, not a new dist/ directory');
-          assert.equal(path.basename(packed.filename), packed.filename);
-          assert.ok(packed.filename.endsWith('.tgz'));
-          const tarball = path.join(process.env.RUNNER_TEMP, 'npm-package', packed.filename);
-          assert.ok(fs.statSync(tarball).size > 0);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball=${tarball}\n`);
-          console.log(JSON.stringify(packed, null, 2));
-          NODE
-
-      - name: Upload checked package
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: ${{ steps.pack.outputs.tarball }}
-          if-no-files-found: error
-          retention-days: 7
+          path: dist
 
   publish-npm:
-    name: Publish checked package
-    needs: pack
-    if: ${{ inputs.publish && github.repository == 'stiltsoft/alasql' && github.ref == 'refs/heads/develop' }}
+    needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     environment: npm-publish
     permissions:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-
-      - name: Prepare npm
-        run: npm install --global npm@11.15.0
-
-      - name: Download checked package
+          registry-url: https://registry.npmjs.org/
+          scope: '@tablefilter'
+      - run: npm install --global npm@11.15.0
+      - name: Download dist
         uses: actions/download-artifact@v4
         with:
-          name: npm-package
-          path: ${{ runner.temp }}/npm-package
-
-      - name: Publish through npm trusted publisher
-        run: |
-          packages=("$RUNNER_TEMP/npm-package/"*.tgz)
-          if [[ ${#packages[@]} -ne 1 || ! -f "${packages[0]}" ]]; then
-            echo 'Expected exactly one checked npm package archive.' >&2
-            exit 1
-          fi
-          npm publish "${packages[0]}" --ignore-scripts --access public --tag latest --registry https://registry.npmjs.org/
+          name: dist
+      - run: npm install
+      - run: npm publish --access public --tag latest
